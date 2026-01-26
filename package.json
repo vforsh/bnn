@@ -1,0 +1,39 @@
+{
+  "name": "bnn",
+  "version": "0.1.0",
+  "description": "CLI for generating and editing images with Gemini API",
+  "module": "src/index.ts",
+  "type": "module",
+  "bin": {
+    "bnn": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "gemini",
+    "ai",
+    "image-generation",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.2",
+    "nanoid": "^5.1.6",
+    "ora": "^9.1.0",
+    "slugify": "^1.6.6",
+    "smol-toml": "^1.6.0",
+    "zod": "^4.3.6"
+  }
+}
