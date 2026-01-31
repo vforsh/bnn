@@ -89,7 +89,7 @@ async function runGenerate(
   }
 
   // Validate and set model
-  const model = options.model || config.model?.default || "gemini-2.0-flash-exp";
+  const model = options.model || config.model?.default || "gemini-3-pro-image-preview";
   if (!validateModel(model)) {
     formatGenerateResult(
       {
