@@ -12,6 +12,7 @@ export interface GenerateCommandOptions {
   aspectRatio?: string;
   refImage?: string[];
   output?: string;
+  search?: boolean;
   noText?: boolean;
   json?: boolean;
   verbose?: boolean;
@@ -41,6 +42,7 @@ export function createGenerateCommand(): Command {
     .option("--ref <path>", "", collect, [])
     .option("--img <path>", "", collect, [])
     .option("--out <path>", "")
+    .option("--search", "Enable Google Search grounding (gemini-3-pro-image-preview only)")
     .option("--no-text", "Suppress text response in output")
     .option("--json", "Output result as JSON")
     .action(async (prompt: string, options: GenerateCommandOptions) => {
@@ -175,6 +177,7 @@ async function runGenerate(
       resolution: resolution as "1k" | "2k" | "4k",
       aspectRatio: aspectRatio as typeof aspectRatio extends string ? AspectRatio : undefined,
       refImages: options.refImage,
+      search: options.search,
     });
 
     // Save image
@@ -191,6 +194,7 @@ async function runGenerate(
         text: options.noText ? undefined : result.text,
         width: result.width,
         height: result.height,
+        sources: result.sources,
       },
       options
     );

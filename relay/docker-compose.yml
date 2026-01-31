@@ -1,0 +1,24 @@
+services:
+  gemini-relay:
+    build: .
+    env_file: .env
+    environment:
+      - PORT=3100
+    restart: unless-stopped
+    networks:
+      - coolify
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=coolify"
+      - "traefik.http.routers.gemini-relay-http.entrypoints=http"
+      - "traefik.http.routers.gemini-relay-http.rule=Host(`gemini.rwhl.se`)"
+      - "traefik.http.routers.gemini-relay-http.service=gemini-relay"
+      - "traefik.http.routers.gemini-relay.entrypoints=https"
+      - "traefik.http.routers.gemini-relay.rule=Host(`gemini.rwhl.se`)"
+      - "traefik.http.routers.gemini-relay.tls=true"
+      - "traefik.http.routers.gemini-relay.tls.certresolver=letsencrypt"
+      - "traefik.http.services.gemini-relay.loadbalancer.server.port=3100"
+
+networks:
+  coolify:
+    external: true

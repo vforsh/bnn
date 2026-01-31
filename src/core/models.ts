@@ -14,6 +14,7 @@ export const MODEL_INFO: Record<
     maxResolution: "1k" | "2k" | "4k";
     supportsEdit: boolean;
     supportsMultiTurn: boolean;
+    supportsSearch: boolean;
   }
 > = {
   "gemini-2.0-flash-exp": {
@@ -22,6 +23,7 @@ export const MODEL_INFO: Record<
     maxResolution: "1k",
     supportsEdit: true,
     supportsMultiTurn: true,
+    supportsSearch: false,
   },
   "gemini-3-pro-image-preview": {
     name: "Gemini 3 Pro Image Preview",
@@ -29,6 +31,7 @@ export const MODEL_INFO: Record<
     maxResolution: "4k",
     supportsEdit: true,
     supportsMultiTurn: true,
+    supportsSearch: true,
   },
   "imagen-3.0-generate-002": {
     name: "Imagen 3",
@@ -36,6 +39,7 @@ export const MODEL_INFO: Record<
     maxResolution: "4k",
     supportsEdit: false,
     supportsMultiTurn: false,
+    supportsSearch: false,
   },
 };
 

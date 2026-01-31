@@ -9,6 +9,7 @@ export interface GenerateOptions {
   resolution?: Resolution;
   aspectRatio?: AspectRatio;
   refImages?: string[];
+  search?: boolean;
 }
 
 export interface EditOptions extends GenerateOptions {
@@ -16,11 +17,17 @@ export interface EditOptions extends GenerateOptions {
   inputImageIsBase64?: boolean;
 }
 
+export interface SearchSource {
+  title: string;
+  uri: string;
+}
+
 export interface GenerateResult {
   imageData: string; // base64
   text?: string;
   width?: number;
   height?: number;
+  sources?: SearchSource[];
 }
 
 export class BnnClient {
@@ -35,11 +42,16 @@ export class BnnClient {
   }
 
   async generate(options: GenerateOptions): Promise<GenerateResult> {
-    const { model, prompt, resolution, aspectRatio, refImages } = options;
+    const { model, prompt, resolution, aspectRatio, refImages, search } = options;
 
     const modelInfo = MODEL_INFO[model];
     if (!modelInfo) {
       throw new Error(`Unsupported model: ${model}`);
+    }
+
+    // Validate search support
+    if (search && !modelInfo.supportsSearch) {
+      throw new Error(`Model ${model} does not support Google Search grounding`);
     }
 
     // Validate resolution
@@ -84,9 +96,15 @@ export class BnnClient {
       requestOptions,
     );
 
-    const response = await genModel.generateContent({
+    const generateRequest: Record<string, unknown> = {
       contents: [{ role: "user", parts }],
-    });
+    };
+    if (search) {
+      generateRequest.tools = [{ google_search: {} }];
+    }
+
+    // @ts-expect-error - google_search tool type not in SDK types
+    const response = await genModel.generateContent(generateRequest);
 
     return this.extractResult(response);
   }
@@ -100,6 +118,7 @@ export class BnnClient {
       resolution,
       aspectRatio,
       refImages,
+      search,
     } = options;
 
     const modelInfo = MODEL_INFO[model];
@@ -109,6 +128,11 @@ export class BnnClient {
 
     if (!modelInfo.supportsEdit) {
       throw new Error(`Model ${model} does not support image editing`);
+    }
+
+    // Validate search support
+    if (search && !modelInfo.supportsSearch) {
+      throw new Error(`Model ${model} does not support Google Search grounding`);
     }
 
     // Build content parts
@@ -159,9 +183,15 @@ export class BnnClient {
       requestOptions,
     );
 
-    const response = await genModel.generateContent({
+    const generateRequest: Record<string, unknown> = {
       contents: [{ role: "user", parts }],
-    });
+    };
+    if (search) {
+      generateRequest.tools = [{ google_search: {} }];
+    }
+
+    // @ts-expect-error - google_search tool type not in SDK types
+    const response = await genModel.generateContent(generateRequest);
 
     return this.extractResult(response);
   }
@@ -177,7 +207,7 @@ export class BnnClient {
   }
 
   private extractResult(response: {
-    response: { candidates?: Array<{ content?: { parts?: unknown[] } }> };
+    response: { candidates?: Array<{ content?: { parts?: unknown[] }; groundingMetadata?: unknown }> };
   }): GenerateResult {
     const candidates = response.response.candidates;
     if (!candidates || candidates.length === 0) {
@@ -215,11 +245,27 @@ export class BnnClient {
 
     const dimensions = getImageDimensions(imageData);
 
+    // Extract search grounding sources
+    let sources: SearchSource[] | undefined;
+    const grounding = firstCandidate.groundingMetadata as {
+      groundingChunks?: Array<{ web?: { title?: string; uri?: string } }>;
+    } | undefined;
+    if (grounding?.groundingChunks) {
+      sources = grounding.groundingChunks
+        .filter((chunk) => chunk.web?.uri)
+        .map((chunk) => ({
+          title: chunk.web!.title || chunk.web!.uri!,
+          uri: chunk.web!.uri!,
+        }));
+      if (sources.length === 0) sources = undefined;
+    }
+
     return {
       imageData,
       text,
       width: dimensions?.width,
       height: dimensions?.height,
+      sources,
     };
   }
 }

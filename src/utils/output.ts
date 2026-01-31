@@ -1,4 +1,5 @@
 import { logger } from "./logger";
+import type { SearchSource } from "../core";
 
 export interface GenerateResult {
   success: boolean;
@@ -9,6 +10,7 @@ export interface GenerateResult {
   error?: string;
   width?: number;
   height?: number;
+  sources?: SearchSource[];
 }
 
 export interface SessionInfo {
@@ -45,15 +47,23 @@ export function formatGenerateResult(
     result.width && result.height ? ` (${result.width}x${result.height})` : "";
   logger.success(`Generated: ${result.output}${dimensions}`);
 
+  if (result.text) {
+    logger.info(`Response: ${result.text}`);
+  }
+
+  if (result.sources && result.sources.length > 0) {
+    logger.info("Sources:");
+    for (const source of result.sources) {
+      logger.info(`  - ${source.title}: ${source.uri}`);
+    }
+  }
+
   if (options.verbose) {
     if (result.model) {
       logger.info(`Model: ${result.model}`);
     }
     if (result.session_id) {
       logger.info(`Session: ${result.session_id}`);
-    }
-    if (result.text) {
-      logger.info(`Response: ${result.text}`);
     }
   }
 }

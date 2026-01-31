@@ -17,6 +17,7 @@ export interface ReplOptions {
   resolution?: string;
   aspectRatio?: string;
   outputDir: string;
+  search?: boolean;
 }
 
 export async function startRepl(options: ReplOptions): Promise<void> {
@@ -29,6 +30,7 @@ export async function startRepl(options: ReplOptions): Promise<void> {
     resolution,
     aspectRatio,
     outputDir,
+    search,
   } = options;
 
   const rl = readline.createInterface({
@@ -113,6 +115,7 @@ export async function startRepl(options: ReplOptions): Promise<void> {
         inputImageIsBase64: true,
         resolution: resolution as any,
         aspectRatio: aspectRatio as any,
+        search,
       });
 
       // Save the image
@@ -138,6 +141,13 @@ export async function startRepl(options: ReplOptions): Promise<void> {
 
       if (result.text) {
         console.log(`Response: ${result.text}`);
+      }
+
+      if (result.sources && result.sources.length > 0) {
+        console.log("Sources:");
+        for (const source of result.sources) {
+          console.log(`  - ${source.title}: ${source.uri}`);
+        }
       }
 
       console.log();

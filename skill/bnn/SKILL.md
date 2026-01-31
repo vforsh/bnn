@@ -23,6 +23,7 @@ Options:
 - `-a, --aspect-ratio <ratio>` — 1:1 (default), 3:4, 16:9, etc.
 - `--ref, --img, --ref-image <path>` — reference image(s), repeatable
 - `-o, --out, --output <path>` — output file path
+- `--search` — enable Google Search grounding (`gemini-3-pro-image-preview` only)
 - `--no-text` — suppress text response
 - `--json` — JSON output
 
@@ -75,11 +76,11 @@ Keys: `api.key`, `api.proxy`, `api.relay_token`, `model.default`, `output.direct
 
 ## Models
 
-| Model | Max Res | Edit | Multi-turn |
-|-------|---------|------|------------|
-| `gemini-2.0-flash-exp` | 1k | yes | yes |
-| `gemini-3-pro-image-preview` | 4k | yes | yes |
-| `imagen-3.0-generate-002` | 4k | no | no |
+| Model | Max Res | Edit | Multi-turn | Search |
+|-------|---------|------|------------|--------|
+| `gemini-2.0-flash-exp` | 1k | yes | yes | no |
+| `gemini-3-pro-image-preview` | 4k | yes | yes | yes |
+| `imagen-3.0-generate-002` | 4k | no | no | no |
 
 ## Aspect Ratios
 
@@ -114,7 +115,7 @@ Env vars: `BNN_API_KEY`, `BNN_PROXY`, `BNN_RELAY_TOKEN`, `BNN_MODEL`, `BNN_OUTPU
 
 - **Default**: `Generated: /path/to/file.png (1024x1024)` + session resume hint
 - **Quiet** (`-q`): file path only
-- **JSON** (`--json`): `{ success, output, model, text, width, height, session_id }`
+- **JSON** (`--json`): `{ success, output, model, text, width, height, session_id, sources }`
 
 ## Prompting Guide
 
@@ -165,11 +166,23 @@ bnn edit "remove the background and replace with solid white" -i photo.jpg
 bnn edit "make the lighting warmer, add slight lens flare" -s <id>
 ```
 
+### Search Grounding
+
+Use `--search` with `gemini-3-pro-image-preview` to ground image generation in real-time web search results. Useful for current events, real-world data, or factual imagery.
+
+```
+bnn gen "current weather forecast in San Francisco as a chart" --search -m gemini-3-pro-image-preview
+bnn gen "today's top news headlines as an infographic" --search -m gemini-3-pro-image-preview
+```
+
+When search grounding is used, source URLs are displayed alongside the generated image.
+
 ### Tips
 
 - Narrative > keywords. Full sentences beat comma-separated tags.
 - Be specific about style, lighting, composition, mood.
 - Reference images help maintain consistency — up to 14 refs supported.
+- Use `--search` with `gemini-3-pro-image-preview` for prompts referencing current/real-world info.
 - Use `gemini-3-pro-image-preview` for highest quality / text accuracy / 4k.
 - Use `gemini-2.0-flash-exp` for fast iteration at 1k.
 - Multi-turn edits: make small incremental changes per turn.
