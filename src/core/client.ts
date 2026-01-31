@@ -25,9 +25,13 @@ export interface GenerateResult {
 
 export class BnnClient {
   private client: GoogleGenerativeAI;
+  private baseUrl?: string;
+  private relayToken?: string;
 
-  constructor(apiKey: string) {
+  constructor(apiKey: string, baseUrl?: string, relayToken?: string) {
     this.client = new GoogleGenerativeAI(apiKey);
+    this.baseUrl = baseUrl;
+    this.relayToken = relayToken;
   }
 
   async generate(options: GenerateOptions): Promise<GenerateResult> {
@@ -68,13 +72,17 @@ export class BnnClient {
     parts.push({ text: prompt });
 
     // Get the generative model
-    const genModel = this.client.getGenerativeModel({
-      model,
-      generationConfig: {
-        // @ts-expect-error - responseModalities is valid for image models
-        responseModalities: ["TEXT", "IMAGE"],
+    const requestOptions = this.getRequestOptions();
+    const genModel = this.client.getGenerativeModel(
+      {
+        model,
+        generationConfig: {
+          // @ts-expect-error - responseModalities is valid for image models
+          responseModalities: ["TEXT", "IMAGE"],
+        },
       },
-    });
+      requestOptions,
+    );
 
     const response = await genModel.generateContent({
       contents: [{ role: "user", parts }],
@@ -139,19 +147,33 @@ export class BnnClient {
     parts.push({ text: prompt });
 
     // Get the generative model
-    const genModel = this.client.getGenerativeModel({
-      model,
-      generationConfig: {
-        // @ts-expect-error - responseModalities is valid for image models
-        responseModalities: ["TEXT", "IMAGE"],
+    const requestOptions = this.getRequestOptions();
+    const genModel = this.client.getGenerativeModel(
+      {
+        model,
+        generationConfig: {
+          // @ts-expect-error - responseModalities is valid for image models
+          responseModalities: ["TEXT", "IMAGE"],
+        },
       },
-    });
+      requestOptions,
+    );
 
     const response = await genModel.generateContent({
       contents: [{ role: "user", parts }],
     });
 
     return this.extractResult(response);
+  }
+
+  private getRequestOptions() {
+    if (!this.baseUrl && !this.relayToken) return undefined;
+    return {
+      ...(this.baseUrl && { baseUrl: this.baseUrl }),
+      ...(this.relayToken && {
+        customHeaders: { "x-relay-token": this.relayToken },
+      }),
+    };
   }
 
   private extractResult(response: {

@@ -1,4 +1,6 @@
 import { Command } from "commander";
+import { execSync } from "child_process";
+import { existsSync } from "fs";
 import {
   loadConfig,
   getConfigPaths,
@@ -17,7 +19,8 @@ export function createConfigCommand(): Command {
     .addCommand(createInitCommand())
     .addCommand(createSetCommand())
     .addCommand(createGetCommand())
-    .addCommand(createPathCommand());
+    .addCommand(createPathCommand())
+    .addCommand(createOpenCommand());
 
   return command;
 }
@@ -94,6 +97,30 @@ function createGetCommand(): Command {
         } else {
           logger.info(`${key}: ${typeof value === "object" ? JSON.stringify(value) : value}`);
         }
+      }
+    });
+}
+
+function createOpenCommand(): Command {
+  return new Command("open")
+    .description("Open configuration file in default editor")
+    .option("-g, --global", "Open global config instead of project config")
+    .action((options: { global?: boolean }) => {
+      const paths = getConfigPaths();
+      const configPath = options.global ? paths.global : (paths.project || paths.global);
+
+      if (!existsSync(configPath)) {
+        logger.error(`Config file does not exist: ${configPath}`);
+        logger.info(`Run 'bnn config init${options.global ? " --global" : ""}' to create it.`);
+        process.exit(3);
+      }
+
+      const editor = process.env.VISUAL || process.env.EDITOR || "open";
+      try {
+        execSync(`${editor} "${configPath}"`, { stdio: "inherit" });
+      } catch {
+        logger.error(`Failed to open editor. Set $EDITOR or $VISUAL environment variable.`);
+        process.exit(1);
       }
     });
 }

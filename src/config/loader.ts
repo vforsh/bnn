@@ -11,6 +11,8 @@ import {
   ENV_OUTPUT_DIR,
   ENV_RESOLUTION,
   ENV_ASPECT_RATIO,
+  ENV_PROXY,
+  ENV_RELAY_TOKEN,
 } from "./defaults";
 
 function deepMerge<T extends Record<string, any>>(
@@ -68,14 +70,24 @@ function loadTomlFile(path: string): Config | null {
 function loadEnvConfig(): Partial<Config> {
   const config: Partial<Config> = {};
 
-  if (process.env[ENV_API_KEY]) {
-    config.api = { key: process.env[ENV_API_KEY] };
+  if (process.env[ENV_API_KEY] || process.env[ENV_PROXY] || process.env[ENV_RELAY_TOKEN]) {
+    config.api = {};
+    if (process.env[ENV_API_KEY]) {
+      config.api.key = process.env[ENV_API_KEY];
+    }
+    if (process.env[ENV_PROXY]) {
+      config.api.proxy = process.env[ENV_PROXY];
+    }
+    if (process.env[ENV_RELAY_TOKEN]) {
+      config.api.relay_token = process.env[ENV_RELAY_TOKEN];
+    }
   }
 
   if (process.env[ENV_MODEL]) {
     const model = process.env[ENV_MODEL];
     if (
       model === "gemini-2.0-flash-exp" ||
+      model === "gemini-3-pro-image-preview" ||
       model === "imagen-3.0-generate-002"
     ) {
       config.model = { default: model };
@@ -187,6 +199,7 @@ export function initConfig(global: boolean = false): string {
 
 [api]
 # key = "your-api-key-here"  # or use BNN_API_KEY env var
+# proxy = "https://gemini.rwhl.se"  # API relay (default), set to "" to disable
 
 [model]
 default = "gemini-2.0-flash-exp"  # or "imagen-3.0-generate-002"

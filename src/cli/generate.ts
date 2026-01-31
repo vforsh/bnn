@@ -151,7 +151,7 @@ async function runGenerate(
     : ora("Generating image...").start();
 
   try {
-    const client = new BnnClient(apiKey);
+    const client = new BnnClient(apiKey, config.api?.proxy, config.api?.relay_token);
 
     logger.debug(`Model: ${model}`);
     logger.debug(`Resolution: ${resolution}`);

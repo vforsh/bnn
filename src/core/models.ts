@@ -1,5 +1,6 @@
 export const SUPPORTED_MODELS = [
   "gemini-2.0-flash-exp",
+  "gemini-3-pro-image-preview",
   "imagen-3.0-generate-002",
 ] as const;
 
@@ -19,6 +20,13 @@ export const MODEL_INFO: Record<
     name: "Gemini 2.0 Flash",
     description: "Fast image generation, 1K resolution only",
     maxResolution: "1k",
+    supportsEdit: true,
+    supportsMultiTurn: true,
+  },
+  "gemini-3-pro-image-preview": {
+    name: "Gemini 3 Pro Image Preview",
+    description: "Latest Gemini model with advanced image generation",
+    maxResolution: "4k",
     supportsEdit: true,
     supportsMultiTurn: true,
   },

@@ -2,11 +2,13 @@ import { z } from "zod";
 
 export const ApiConfigSchema = z.object({
   key: z.string().optional(),
+  proxy: z.string().optional(),
+  relay_token: z.string().optional(),
 });
 
 export const ModelConfigSchema = z.object({
   default: z
-    .enum(["gemini-2.0-flash-exp", "imagen-3.0-generate-002"])
+    .enum(["gemini-2.0-flash-exp", "gemini-3-pro-image-preview", "imagen-3.0-generate-002"])
     .default("gemini-2.0-flash-exp"),
 });
 

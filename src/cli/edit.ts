@@ -215,7 +215,7 @@ async function runEdit(
     options.quiet || options.json ? null : ora("Editing image...").start();
 
   try {
-    const client = new BnnClient(apiKey);
+    const client = new BnnClient(apiKey, config.api?.proxy, config.api?.relay_token);
 
     logger.debug(`Model: ${model}`);
     logger.debug(`Session: ${session.id}`);
