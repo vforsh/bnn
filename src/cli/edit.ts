@@ -23,6 +23,9 @@ export interface EditCommandOptions {
   quiet?: boolean;
   apiKey?: string;
   config?: string;
+  ref?: string[];
+  img?: string[];
+  out?: string;
 }
 
 export function createEditCommand(): Command {
@@ -41,6 +44,9 @@ export function createEditCommand(): Command {
       []
     )
     .option("-o, --output <path>", "Output file path")
+    .option("--ref <path>", "", collect, [])
+    .option("--img <path>", "", collect, [])
+    .option("--out <path>", "")
     .option("--no-text", "Suppress text response in output")
     .option("--interactive", "Enter interactive REPL mode after edit")
     .option("--json", "Output result as JSON")
@@ -59,6 +65,10 @@ async function runEdit(
   prompt: string,
   options: EditCommandOptions
 ): Promise<void> {
+  // Merge option aliases
+  options.refImage = [...(options.refImage || []), ...(options.ref || []), ...(options.img || [])];
+  options.output = options.output || options.out;
+
   const config = loadConfig(options.config);
 
   // Set up logger

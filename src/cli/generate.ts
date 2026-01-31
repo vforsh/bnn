@@ -18,10 +18,14 @@ export interface GenerateCommandOptions {
   quiet?: boolean;
   apiKey?: string;
   config?: string;
+  ref?: string[];
+  img?: string[];
+  out?: string;
 }
 
 export function createGenerateCommand(): Command {
   const command = new Command("generate")
+    .alias("gen")
     .description("Generate an image from a text prompt")
     .argument("<prompt>", "Text prompt describing the image to generate")
     .option("-m, --model <model>", "Model to use")
@@ -34,6 +38,9 @@ export function createGenerateCommand(): Command {
       []
     )
     .option("-o, --output <path>", "Output file path")
+    .option("--ref <path>", "", collect, [])
+    .option("--img <path>", "", collect, [])
+    .option("--out <path>", "")
     .option("--no-text", "Suppress text response in output")
     .option("--json", "Output result as JSON")
     .action(async (prompt: string, options: GenerateCommandOptions) => {
@@ -51,6 +58,10 @@ async function runGenerate(
   prompt: string,
   options: GenerateCommandOptions
 ): Promise<void> {
+  // Merge option aliases
+  options.refImage = [...(options.refImage || []), ...(options.ref || []), ...(options.img || [])];
+  options.output = options.output || options.out;
+
   const config = loadConfig(options.config);
 
   // Set up logger

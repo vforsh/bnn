@@ -14,6 +14,7 @@ import { logger } from "../utils";
 
 export function createConfigCommand(): Command {
   const command = new Command("config")
+    .alias("cfg")
     .description("Manage configuration")
     .addCommand(createShowCommand())
     .addCommand(createInitCommand())
