@@ -187,3 +187,130 @@ When search grounding is used, source URLs are displayed alongside the generated
 - Use `gemini-2.0-flash-exp` for fast iteration at 1k.
 - Multi-turn edits: make small incremental changes per turn.
 - Negative phrasing works: "no text", "without people", "empty background".
+
+## Icon generation
+
+Use `bnn gen` with `--aspect-ratio 1:1` for app/game icons.
+
+Default prompt rules (apply unless the user explicitly overrides):
+- **Square**: always `--aspect-ratio 1:1`.
+- **No rounded corners**: prompt must include "sharp square corners, no rounded corners".
+- **Full bleed**: the icon artwork must fill the entire canvas edge-to-edge with no padding, margins, borders, or empty space.
+- **No text**: do not include any text, letters, numbers, or typography on the icon unless the user explicitly requests it.
+
+Example:
+
+```bash
+bnn gen "a fierce dragon breathing fire, vibrant colors, sharp square corners, no rounded corners, artwork fills entire canvas edge to edge, no text, no letters" --aspect-ratio 1:1
+```
+
+When the user asks for an icon, always append these constraints to their prompt (unless they say otherwise):
+1. "sharp square corners, no rounded corners"
+2. "artwork fills entire canvas edge to edge, no padding, no margins"
+3. "no text, no letters, no typography"
+
+### File naming and versioning
+
+Never overwrite existing images. Before generating, check the output directory for existing files with the same base name. Use incrementing version suffixes: `_v1`, `_v2`, `_v3`, etc. When generating multiple variants in one session, append a short content hint after the version: `icon_v3_chase.png`, `icon_v4_dragon.png`.
+
+**Naming pattern**: `{base}_{version}_{hint}.{ext}`
+
+| Part | Rule | Example |
+|---|---|---|
+| `{base}` | Asset type or user-specified name | `icon`, `app_icon` |
+| `{version}` | `v{N}` — next available integer | `v1`, `v2`, `v3` |
+| `{hint}` | Short content descriptor (1–2 words, underscore-separated) | `dragon`, `fire_breath` |
+
+**Procedure**:
+1. List existing files in the output directory matching the base name pattern.
+2. Find the highest existing version number `N`.
+3. Name the new file with `v{N+1}` (or `v1` if none exist).
+4. Append a content hint describing the image subject.
+
+Example: output dir contains `icon_v1.png`, `icon_v2_forest.png` → next file: `icon_v3_castle.png`.
+
+### Style-matching with references
+
+If the icon is for a project with an established visual style, pass reference images via `--ref` so the model matches the existing look and feel. All the same prompt rules above still apply.
+
+```bash
+bnn gen "app icon of a treasure chest in the same art style as reference images, sharp square corners, no rounded corners, artwork fills entire canvas edge to edge, no text, no letters" --ref ref1.png --ref ref2.png --aspect-ratio 1:1
+```
+
+## Banner / cover image generation
+
+Use `bnn gen` for banners, covers, headers, and other non-square promotional images.
+
+### Aspect ratio selection
+
+bnn supports these aspect ratios: `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9`. Pick the one closest to the target dimensions.
+
+**Decision table** (target → aspect ratio):
+
+| Target aspect ratio | Closest bnn ratio |
+|---|---|
+| ultra-wide (e.g. 21:9, 2.35:1) | `21:9` |
+| wide (e.g. 16:9, 1920×1080) | `16:9` |
+| landscape (e.g. 3:2, 1200×800) | `3:2` |
+| mild landscape (e.g. 4:3, 800×600) | `4:3` |
+| square (1:1) | `1:1` |
+| mild portrait (e.g. 4:5, 5:4→4:5) | `4:5` |
+| portrait (e.g. 3:4, 600×800) | `3:4` |
+| tall portrait (e.g. 2:3, 800×1200) | `2:3` |
+| very tall (e.g. 9:16, 1080×1920) | `9:16` |
+
+**Rule of thumb**: pick the ratio whose numeric value (width/height) is closest to the target's.
+
+### Prompt rules
+
+Default prompt rules (apply unless the user explicitly overrides):
+- **No rounded corners**: prompt must include "no rounded corners".
+- **Full bleed**: the artwork must fill the entire canvas edge-to-edge with no padding, margins, borders, or empty space.
+- **No text**: do not include any text, letters, numbers, or typography unless the user explicitly requests it.
+
+When the user asks for a banner/cover, always append these constraints to their prompt (unless they say otherwise):
+1. "artwork fills entire canvas edge to edge, no padding, no margins, no borders"
+2. "no rounded corners"
+3. "no text, no letters, no typography"
+
+### Examples
+
+**Landscape banner (800×470)**. Target is ~16:9 → `--aspect-ratio 16:9`:
+
+```bash
+bnn gen "epic space battle scene with nebula and starships, cinematic lighting, artwork fills entire canvas edge to edge, no padding, no margins, no borders, no rounded corners, no text, no letters" --aspect-ratio 16:9
+```
+
+**Portrait story/reel cover (1080×1920)**. Target is 9:16 → `--aspect-ratio 9:16`:
+
+```bash
+bnn gen "tropical sunset over the ocean, vibrant gradient sky, artwork fills entire canvas edge to edge, no padding, no margins, no borders, no rounded corners, no text, no letters" --aspect-ratio 9:16
+```
+
+### File naming and versioning
+
+Never overwrite existing images. Before generating, check the output directory for existing files with the same base name. Use incrementing version suffixes: `_v1`, `_v2`, `_v3`, etc. When generating multiple variants in one session, append a short content hint after the version: `banner_v3_chase.png`, `banner_v4_sunset.png`.
+
+**Naming pattern**: `{base}_{version}_{hint}.{ext}`
+
+| Part | Rule | Example |
+|---|---|---|
+| `{base}` | Asset type or user-specified name | `banner`, `cover` |
+| `{version}` | `v{N}` — next available integer | `v1`, `v2`, `v3` |
+| `{hint}` | Short content descriptor (1–2 words, underscore-separated) | `space_battle`, `sunset` |
+
+**Procedure**:
+1. List existing files in the output directory matching the base name pattern.
+2. Find the highest existing version number `N`.
+3. Name the new file with `v{N+1}` (or `v1` if none exist).
+4. Append a content hint describing the image subject.
+
+Example: output dir contains `banner_v1.png`, `banner_v2.png` → next file: `banner_v3_chase.png`.
+
+### Style-matching with references
+
+If the project has an established visual style, pass reference images via `--ref`:
+
+```bash
+bnn gen "game banner in the same art style as reference images, forest theme with magical creatures, artwork fills entire canvas edge to edge, no padding, no margins, no borders, no rounded corners, no text, no letters" --ref ref1.png --ref ref2.png --aspect-ratio 16:9
+```
