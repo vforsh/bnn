@@ -211,23 +211,23 @@ When the user asks for an icon, always append these constraints to their prompt 
 
 ### File naming and versioning
 
-Never overwrite existing images. Before generating, check the output directory for existing files with the same base name. Use incrementing version suffixes: `_v1`, `_v2`, `_v3`, etc. When generating multiple variants in one session, append a short content hint after the version: `icon_v3_chase.png`, `icon_v4_dragon.png`.
+Never overwrite existing images. Before generating, check the output directory for existing files with the same base name. Use zero-padded incrementing version suffixes: `_v01`, `_v02`, `_v03`, etc. When generating multiple variants in one session, append a short content hint after the version: `icon_v03_chase.png`, `icon_v04_dragon.png`.
 
 **Naming pattern**: `{base}_{version}_{hint}.{ext}`
 
 | Part | Rule | Example |
 |---|---|---|
 | `{base}` | Asset type or user-specified name | `icon`, `app_icon` |
-| `{version}` | `v{N}` — next available integer | `v1`, `v2`, `v3` |
+| `{version}` | `v{NN}` — zero-padded, next available integer | `v01`, `v02`, `v03` |
 | `{hint}` | Short content descriptor (1–2 words, underscore-separated) | `dragon`, `fire_breath` |
 
 **Procedure**:
 1. List existing files in the output directory matching the base name pattern.
 2. Find the highest existing version number `N`.
-3. Name the new file with `v{N+1}` (or `v1` if none exist).
+3. Name the new file with `v{N+1}`, zero-padded to 2 digits (or `v01` if none exist).
 4. Append a content hint describing the image subject.
 
-Example: output dir contains `icon_v1.png`, `icon_v2_forest.png` → next file: `icon_v3_castle.png`.
+Example: output dir contains `icon_v01.png`, `icon_v02_forest.png` → next file: `icon_v03_castle.png`.
 
 ### Style-matching with references
 
@@ -289,23 +289,23 @@ bnn gen "tropical sunset over the ocean, vibrant gradient sky, artwork fills ent
 
 ### File naming and versioning
 
-Never overwrite existing images. Before generating, check the output directory for existing files with the same base name. Use incrementing version suffixes: `_v1`, `_v2`, `_v3`, etc. When generating multiple variants in one session, append a short content hint after the version: `banner_v3_chase.png`, `banner_v4_sunset.png`.
+Never overwrite existing images. Before generating, check the output directory for existing files with the same base name. Use zero-padded incrementing version suffixes: `_v01`, `_v02`, `_v03`, etc. When generating multiple variants in one session, append a short content hint after the version: `banner_v03_chase.png`, `banner_v04_sunset.png`.
 
 **Naming pattern**: `{base}_{version}_{hint}.{ext}`
 
 | Part | Rule | Example |
 |---|---|---|
 | `{base}` | Asset type or user-specified name | `banner`, `cover` |
-| `{version}` | `v{N}` — next available integer | `v1`, `v2`, `v3` |
+| `{version}` | `v{NN}` — zero-padded, next available integer | `v01`, `v02`, `v03` |
 | `{hint}` | Short content descriptor (1–2 words, underscore-separated) | `space_battle`, `sunset` |
 
 **Procedure**:
 1. List existing files in the output directory matching the base name pattern.
 2. Find the highest existing version number `N`.
-3. Name the new file with `v{N+1}` (or `v1` if none exist).
+3. Name the new file with `v{N+1}`, zero-padded to 2 digits (or `v01` if none exist).
 4. Append a content hint describing the image subject.
 
-Example: output dir contains `banner_v1.png`, `banner_v2.png` → next file: `banner_v3_chase.png`.
+Example: output dir contains `banner_v01.png`, `banner_v02.png` → next file: `banner_v03_chase.png`.
 
 ### Style-matching with references
 
