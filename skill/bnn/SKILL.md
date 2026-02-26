@@ -1,7 +1,6 @@
 ---
 name: bnn
-description: Use the bnn CLI to generate/edit images with Gemini models (Nano Banana 2 default), manage config, and run readiness checks. Trigger on: bnn, image generation, Gemini image editing, Nano Banana 2, config automation.
-allowed-tools: Bash(bnn *)
+description: 'Use the bnn CLI to generate/edit images with Gemini models (Nano Banana 2 default), manage config, and run readiness checks. Triggers on: bnn, image generation, Gemini image editing, Nano Banana 2, config automation.'
 ---
 
 # bnn
@@ -33,6 +32,8 @@ bnn gen "complex prompt" --thinking high
 ## Config
 
 - `bnn cfg list|ls [--json|--plain]`
+- `bnn cfg show [--json|--plain]`
+- `bnn cfg init [--global]`
 - `bnn cfg set <key> <value>`
 - `bnn cfg set key=value key2=value2`
 - `bnn cfg set model.thinking=minimal|high|dynamic`
@@ -41,10 +42,12 @@ bnn gen "complex prompt" --thinking high
 - `bnn cfg unset <key...>`
 - `bnn cfg export --json`
 - `cat config.json | bnn cfg import --json`
+- `bnn cfg path [--json|--plain]`
+- `bnn cfg open [--global]`
 
 ## Global flags
 
-`--json`, `--plain`, `-q`, `-v`, `--timeout`, `--retries`, `--endpoint`, `--region`, `--config`
+`--json`, `--plain`, `-q`, `-v`, `--debug`, `--timeout`, `--retries`, `--endpoint`, `--region`, `--config`
 
 ## Common errors
 
