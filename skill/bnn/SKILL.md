@@ -160,6 +160,50 @@ If the project has existing promotional art, pass references to keep style consi
 bnn gen "game banner in the same art style as references, forest theme with magical creatures, artwork fills entire canvas edge to edge, no padding, no margins, no borders, no rounded corners, no text, no letters" --ref-image ./ref1.png --ref-image ./ref2.png --aspect-ratio 16:9 --resolution 2k --output ./banner_v04_forest.png
 ```
 
+## Prompting guide
+
+Use this when users ask how to prompt supported Gemini image models ("nano banana").
+
+### Core rules
+
+1. **Describe scenes, not keyword piles** — write a short natural-language paragraph.
+2. **State intent explicitly** — start with "Create/generate an image of ..." to avoid text-only responses.
+3. **Specify controllable dimensions** — subject, composition, action, location, style, lighting, camera angle/lens, mood.
+4. **Use positive constraints** — prefer "empty street" over "no cars".
+5. **Iterate in small edits** — follow-ups like "warmer lighting", "move subject left", "reduce background clutter".
+6. **For complex outputs, use ordered steps** — "First..., then..., finally...".
+
+### Prompt skeleton (generation)
+
+`Create an image of [subject], [action], in [location/context]. Composition: [framing/angle], lighting: [type/time], style: [visual style], mood: [mood], key details: [textures/colors/materials]. Output: [aspect ratio/orientation].`
+
+### Prompt skeleton (editing)
+
+`Edit the provided image: [exact local change]. Preserve [identity/style/background elements]. Keep [composition/camera], update only [target region/attribute].`
+
+### High-signal patterns
+
+- **Consistency across images:** reference the same character/product traits every turn; keep style and camera language stable.
+- **Multi-image fusion:** tell the model what to take from each reference (e.g., "use pose from A, palette from B, outfit from C").
+- **Text rendering:** explicitly specify exact text, placement, typography style, and hierarchy.
+
+### Minimal examples
+
+```bash
+# photoreal generation
+bnn gen "Create an image of a ceramic artist at work in a sunlit workshop, close-up portrait, 85mm lens look, warm golden-hour light, shallow depth of field, detailed clay texture, serene mood, vertical portrait orientation."
+
+# precise edit
+bnn edit "Edit the provided image: remove the stain on the shirt. Preserve pose, face, lighting, and background. Change only the stain area." --image ./input.png
+```
+
+### Canonical references (prefer these)
+
+- Gemini API image generation: https://ai.google.dev/gemini-api/docs/image-generation
+- Prompt design strategies: https://ai.google.dev/gemini-api/docs/prompting-strategies
+- Vertex best practices: https://docs.cloud.google.com/vertex-ai/generative-ai/docs/multimodal/gemini-image-generation-best-practices
+- Gemini app prompting tips: https://blog.google/products-and-platforms/products/gemini/image-generation-prompting-tips/
+
 ## Common errors
 
 - Exit `1`: runtime failure or doctor found failed checks
