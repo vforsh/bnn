@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "fs";
 import { dirname, join, resolve } from "path";
 import { parse, stringify } from "smol-toml";
-import { ConfigSchema, type Config } from "./schema";
+import { ConfigSchema, SupportedModelSchema, type Config } from "./schema";
 import {
   DEFAULT_CONFIG,
   GLOBAL_CONFIG_PATH,
@@ -11,8 +11,8 @@ import {
   ENV_OUTPUT_DIR,
   ENV_RESOLUTION,
   ENV_ASPECT_RATIO,
-  ENV_PROXY,
-  ENV_RELAY_TOKEN,
+  ENV_THINKING,
+  ENV_ENDPOINT,
 } from "./defaults";
 
 function deepMerge<T extends Record<string, any>>(
@@ -70,28 +70,34 @@ function loadTomlFile(path: string): Config | null {
 function loadEnvConfig(): Partial<Config> {
   const config: Partial<Config> = {};
 
-  if (process.env[ENV_API_KEY] || process.env[ENV_PROXY] || process.env[ENV_RELAY_TOKEN]) {
+  if (process.env[ENV_API_KEY] || process.env[ENV_ENDPOINT]) {
     config.api = {};
     if (process.env[ENV_API_KEY]) {
       config.api.key = process.env[ENV_API_KEY];
     }
-    if (process.env[ENV_PROXY]) {
-      config.api.proxy = process.env[ENV_PROXY];
-    }
-    if (process.env[ENV_RELAY_TOKEN]) {
-      config.api.relay_token = process.env[ENV_RELAY_TOKEN];
+    if (process.env[ENV_ENDPOINT]) {
+      config.api.endpoint = process.env[ENV_ENDPOINT];
     }
   }
 
+  const modelConfig: Partial<NonNullable<Config["model"]>> = {};
   if (process.env[ENV_MODEL]) {
     const model = process.env[ENV_MODEL];
-    if (
-      model === "gemini-2.0-flash-exp" ||
-      model === "gemini-3-pro-image-preview" ||
-      model === "imagen-3.0-generate-002"
-    ) {
-      config.model = { default: model };
+    const parsedModel = SupportedModelSchema.safeParse(model);
+    if (parsedModel.success) {
+      modelConfig.default = parsedModel.data;
     }
+  }
+
+  if (process.env[ENV_THINKING]) {
+    const level = process.env[ENV_THINKING];
+    if (level === "minimal" || level === "high" || level === "dynamic") {
+      modelConfig.thinking = level;
+    }
+  }
+
+  if (Object.keys(modelConfig).length > 0) {
+    config.model = modelConfig as NonNullable<Config["model"]>;
   }
 
   if (
@@ -105,7 +111,7 @@ function loadEnvConfig(): Partial<Config> {
     }
     if (process.env[ENV_RESOLUTION]) {
       const res = process.env[ENV_RESOLUTION];
-      if (res === "1k" || res === "2k" || res === "4k") {
+      if (res === "512px" || res === "1k" || res === "2k" || res === "4k") {
         config.output.resolution = res;
       }
     }
@@ -181,9 +187,7 @@ export function getConfigPaths(): {
 }
 
 export function initConfig(global: boolean = false): string {
-  const path = global
-    ? GLOBAL_CONFIG_PATH
-    : join(process.cwd(), PROJECT_CONFIG_PATH);
+  const path = getWritableConfigPath(global);
 
   if (existsSync(path)) {
     throw new Error(`Config file already exists at ${path}`);
@@ -199,10 +203,11 @@ export function initConfig(global: boolean = false): string {
 
 [api]
 # key = "your-api-key-here"  # or use BNN_API_KEY env var
-# proxy = "https://gemini.rwhl.se"  # API relay (default), set to "" to disable
+# endpoint = "https://generativelanguage.googleapis.com"  # optional custom endpoint
 
 [model]
-default = "gemini-2.0-flash-exp"  # or "imagen-3.0-generate-002"
+default = "gemini-3.1-flash-image-preview"  # or "gemini-3-pro-image-preview"
+# thinking = "minimal"  # minimal | high | dynamic
 
 [output]
 # directory = "./generated"
@@ -221,43 +226,138 @@ level = "info"
   return path;
 }
 
-export function setConfigValue(
-  key: string,
-  value: string,
-  global: boolean = false
-): void {
-  const path = global
-    ? GLOBAL_CONFIG_PATH
-    : join(process.cwd(), PROJECT_CONFIG_PATH);
+export function getWritableConfigPath(global: boolean = false): string {
+  return global ? GLOBAL_CONFIG_PATH : join(process.cwd(), PROJECT_CONFIG_PATH);
+}
 
-  let config: Record<string, any> = {};
+function ensureParentDir(path: string): void {
+  const dir = dirname(path);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+}
 
-  if (existsSync(path)) {
-    const content = readFileSync(path, "utf-8");
-    config = parse(content);
-  } else {
-    const dir = dirname(path);
-    if (!existsSync(dir)) {
-      mkdirSync(dir, { recursive: true });
-    }
+function loadMutableConfig(path: string): Record<string, unknown> {
+  if (!existsSync(path)) {
+    return {};
   }
 
-  // Parse key like "output.directory" into nested object
+  const content = readFileSync(path, "utf-8");
+  const parsed = parse(content);
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    throw new Error(`Config file at ${path} must contain a TOML object`);
+  }
+  return parsed as Record<string, unknown>;
+}
+
+function parseConfigScalar(value: string): unknown {
+  if (value === "true") return true;
+  if (value === "false") return false;
+  if (value === "null") return null;
+  if (/^-?\d+(\.\d+)?$/.test(value)) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return value;
+}
+
+function setNestedValue(
+  target: Record<string, unknown>,
+  key: string,
+  value: unknown,
+): void {
   const parts = key.split(".");
-  let current: Record<string, unknown> = config;
+  let current = target;
 
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i]!;
-    if (!current[part]) {
+    const existing = current[part];
+    if (typeof existing !== "object" || existing === null || Array.isArray(existing)) {
       current[part] = {};
     }
     current = current[part] as Record<string, unknown>;
   }
 
-  const lastPart = parts[parts.length - 1]!;
-  current[lastPart] = value;
+  const leaf = parts[parts.length - 1]!;
+  current[leaf] = value;
+}
+
+function unsetNestedValue(target: Record<string, unknown>, key: string): boolean {
+  const parts = key.split(".");
+  let current: Record<string, unknown> = target;
+
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i]!;
+    const next = current[part];
+    if (typeof next !== "object" || next === null || Array.isArray(next)) {
+      return false;
+    }
+    current = next as Record<string, unknown>;
+  }
+
+  const leaf = parts[parts.length - 1]!;
+  if (!(leaf in current)) {
+    return false;
+  }
+
+  delete current[leaf];
+  return true;
+}
+
+export function setConfigValues(
+  values: Record<string, unknown>,
+  global: boolean = false,
+): void {
+  const path = getWritableConfigPath(global);
+  ensureParentDir(path);
+  const config = loadMutableConfig(path);
+
+  for (const [key, value] of Object.entries(values)) {
+    setNestedValue(config, key, value);
+  }
 
   writeFileSync(path, stringify(config), "utf-8");
+}
+
+export function setConfigValue(
+  key: string,
+  value: string,
+  global: boolean = false
+): void {
+  setConfigValues({ [key]: parseConfigScalar(value) }, global);
+}
+
+export function unsetConfigValues(keys: string[], global: boolean = false): number {
+  const path = getWritableConfigPath(global);
+  if (!existsSync(path)) {
+    return 0;
+  }
+
+  const config = loadMutableConfig(path);
+  let unsetCount = 0;
+
+  for (const key of keys) {
+    if (unsetNestedValue(config, key)) {
+      unsetCount += 1;
+    }
+  }
+
+  writeFileSync(path, stringify(config), "utf-8");
+  return unsetCount;
+}
+
+export function writeConfigObject(config: unknown, global: boolean = false): string {
+  const parsed = ConfigSchema.parse(config);
+  const path = getWritableConfigPath(global);
+  ensureParentDir(path);
+  writeFileSync(path, stringify(parsed), "utf-8");
+  return path;
+}
+
+export function exportConfig(customConfigPath?: string): Config {
+  return loadConfig(customConfigPath);
 }
 
 export function getConfigValue(key: string): unknown {

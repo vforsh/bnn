@@ -2,23 +2,38 @@ import { Command } from "commander";
 import { writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname, resolve } from "path";
 import ora from "ora";
-import { loadConfig, type Config } from "../config";
-import { BnnClient, validateModel, validateAspectRatio, validateResolution, type AspectRatio } from "../core";
+import { loadConfig } from "../config";
+import {
+  BnnClient,
+  validateModel,
+  validateAspectRatio,
+  validateResolution,
+  type AspectRatio,
+  SUPPORTED_MODELS,
+  validateThinkingLevel,
+  type ThinkingLevel,
+} from "../core";
 import { logger, generateOutputFilename, formatGenerateResult } from "../utils";
+import { mergeGlobalOptions } from "./global-options";
 
 export interface GenerateCommandOptions {
   model?: string;
   resolution?: string;
   aspectRatio?: string;
+  thinking?: string;
   refImage?: string[];
   output?: string;
   search?: boolean;
   noText?: boolean;
   json?: boolean;
+  plain?: boolean;
   verbose?: boolean;
   quiet?: boolean;
-  apiKey?: string;
   config?: string;
+  timeout?: number;
+  retries?: number;
+  endpoint?: string;
+  region?: string;
   ref?: string[];
   img?: string[];
   out?: string;
@@ -27,11 +42,14 @@ export interface GenerateCommandOptions {
 export function createGenerateCommand(): Command {
   const command = new Command("generate")
     .alias("gen")
+    .alias("run")
+    .alias("do")
     .description("Generate an image from a text prompt")
     .argument("<prompt>", "Text prompt describing the image to generate")
     .option("-m, --model <model>", "Model to use")
-    .option("-r, --resolution <res>", "Resolution: 1k, 2k, or 4k")
+    .option("-r, --resolution <res>", "Resolution: 512px, 1k, 2k, or 4k")
     .option("-a, --aspect-ratio <ratio>", "Aspect ratio (e.g., 16:9, 3:4)")
+    .option("-t, --thinking <level>", "Thinking level: minimal, high, or dynamic")
     .option(
       "--ref-image <path>",
       "Reference image (can be used multiple times)",
@@ -42,12 +60,19 @@ export function createGenerateCommand(): Command {
     .option("--ref <path>", "", collect, [])
     .option("--img <path>", "", collect, [])
     .option("--out <path>", "")
-    .option("--search", "Enable Google Search grounding (gemini-3-pro-image-preview only)")
+    .option("--search", "Enable Google Search grounding when supported by model")
     .option("--no-text", "Suppress text response in output")
     .option("--json", "Output result as JSON")
-    .action(async (prompt: string, options: GenerateCommandOptions) => {
-      await runGenerate(prompt, options);
-    });
+    .option("--plain", "Output stable plain text")
+    .action(
+      async (
+        prompt: string,
+        options: GenerateCommandOptions,
+        commandInstance: Command,
+      ) => {
+        await runGenerate(prompt, mergeGlobalOptions(commandInstance, options));
+      }
+    );
 
   return command;
 }
@@ -75,13 +100,13 @@ async function runGenerate(
   }
 
   // Get API key
-  const apiKey = options.apiKey || config.api?.key;
+  const apiKey = process.env.BNN_API_KEY || config.api?.key;
   if (!apiKey) {
     formatGenerateResult(
       {
         success: false,
         error:
-          "No API key provided. Set BNN_API_KEY env var, use --api-key flag, or add to config file.",
+          "No API key provided. Set BNN_API_KEY env var or add api.key to config.",
       },
       options
     );
@@ -89,12 +114,12 @@ async function runGenerate(
   }
 
   // Validate and set model
-  const model = options.model || config.model?.default || "gemini-3-pro-image-preview";
+  const model = options.model || config.model?.default || "gemini-3.1-flash-image-preview";
   if (!validateModel(model)) {
     formatGenerateResult(
       {
         success: false,
-        error: `Invalid model: ${model}. Supported: gemini-2.0-flash-exp, imagen-3.0-generate-002`,
+        error: `Invalid model: ${model}. Supported: ${SUPPORTED_MODELS.join(", ")}`,
       },
       options
     );
@@ -107,7 +132,7 @@ async function runGenerate(
     formatGenerateResult(
       {
         success: false,
-        error: `Invalid resolution: ${resolution}. Supported: 1k, 2k, 4k`,
+        error: `Invalid resolution: ${resolution}. Supported: 512px, 1k, 2k, 4k`,
       },
       options
     );
@@ -121,6 +146,19 @@ async function runGenerate(
       {
         success: false,
         error: `Invalid aspect ratio: ${aspectRatio}`,
+      },
+      options
+    );
+    process.exit(2);
+  }
+
+  // Validate thinking level
+  const thinking = options.thinking || config.model?.thinking;
+  if (thinking && !validateThinkingLevel(thinking)) {
+    formatGenerateResult(
+      {
+        success: false,
+        error: `Invalid thinking level: ${thinking}. Supported: minimal, high, dynamic`,
       },
       options
     );
@@ -159,23 +197,28 @@ async function runGenerate(
   }
 
   // Show spinner
-  const spinner = options.quiet || options.json
+  const spinner = options.quiet || options.json || options.plain
     ? null
     : ora("Generating image...").start();
 
   try {
-    const client = new BnnClient(apiKey, config.api?.proxy, config.api?.relay_token);
+    const client = new BnnClient(
+      apiKey,
+      options.endpoint || config.api?.endpoint,
+    );
 
     logger.debug(`Model: ${model}`);
     logger.debug(`Resolution: ${resolution}`);
     logger.debug(`Aspect ratio: ${aspectRatio || "default"}`);
+    logger.debug(`Thinking: ${thinking || "model-default"}`);
     logger.debug(`Output: ${outputPath}`);
 
     const result = await client.generate({
       model,
       prompt,
-      resolution: resolution as "1k" | "2k" | "4k",
+      resolution: resolution as "512px" | "1k" | "2k" | "4k",
       aspectRatio: aspectRatio as typeof aspectRatio extends string ? AspectRatio : undefined,
+      thinkingLevel: thinking as ThinkingLevel | undefined,
       refImages: options.refImage,
       search: options.search,
     });

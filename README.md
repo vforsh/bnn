@@ -1,104 +1,127 @@
 # bnn
 
-CLI for generating and editing images with the Gemini API.
+CLI for generating and editing images with Google Gemini models.
 
-## Installation
+Default model: `gemini-3.1-flash-image-preview` (Nano Banana 2).
+
+## Run Without Install
+
+```bash
+bunx @vforsh/bnn --help
+bunx @vforsh/bnn gen "a cat astronaut on mars"
+```
+
+## Auth
+
+`bnn` does not accept secrets via CLI flags.
+Set API key via env or config (stdin for secrets):
+
+```bash
+# env
+export BNN_API_KEY="..."
+
+# config (recommended for local machine)
+printf '%s' "$GOOGLE_API_KEY" | bunx @vforsh/bnn cfg set api.key -
+```
+
+## Quick start
+
+```bash
+bunx @vforsh/bnn gen "a cat astronaut on mars"
+bunx @vforsh/bnn edit "remove the background" --image photo.jpg
+bunx @vforsh/bnn edit "make it more vibrant" --session <session-id>
+bunx @vforsh/bnn gen "complex scene composition" --thinking high
+```
+
+All command snippets below use `bnn`. Without local install, replace `bnn` with `bunx @vforsh/bnn`.
+
+## Dev install
 
 ```bash
 bun install
 bun link
 ```
 
-## Usage
-
-### Generate an image
+## Commands
 
 ```bash
-bnn generate "a cat astronaut on mars"
-bnn generate "portrait of a woman" --aspect-ratio 3:4 --resolution 2k
-bnn generate "logo in this style" --ref-image ./style.png -o logo.png
+bnn generate|gen|run|do <prompt>
+bnn edit <prompt>
+bnn session list|show|delete|clear
+bnn config|cfg <subcommand>
+bnn doctor|check
+bnn skill
 ```
 
-### Edit an image
+## Config command
 
 ```bash
-bnn edit "remove the background" --image photo.jpg
-bnn edit "make it more vibrant" --session abc123
-bnn edit "change hair color to red" -i portrait.png --interactive
+bnn cfg list|ls [--json|--plain]
+bnn cfg path
+bnn cfg init [--global]
+
+# set one key
+bnn cfg set model.default gemini-3.1-flash-image-preview
+
+# set many keys
+bnn cfg set api.endpoint=https://generativelanguage.googleapis.com output.resolution=1k output.aspect_ratio=1:1
+
+# configure thinking level
+bnn cfg set model.thinking high
+
+# set secret from stdin only
+printf '%s' "$GOOGLE_API_KEY" | bnn cfg set api.key -
+
+# multi-key read/update
+bnn cfg get model.default output.resolution
+bnn cfg unset output.directory output.aspect_ratio
+
+# machine round-trip
+bnn cfg export --json > /tmp/bnn-config.json
+cat /tmp/bnn-config.json | bnn cfg import --json
 ```
 
-### Interactive mode
+## Doctor
 
-When using `--interactive`, you enter a REPL where you can iteratively refine your edits:
-
-```
-bnn> make the subject larger
-Output: photo-make-the-subject-larger.png
-
-bnn> add a sunset background
-Output: photo-add-a-sunset-background.png
-
-bnn> /help
-bnn> /quit
-```
-
-### Session management
+Read-only readiness checks (runtime/config/auth/network/filesystem):
 
 ```bash
-bnn session list
-bnn session show abc123
-bnn session delete abc123
-bnn session clear
+bnn doctor
+bnn doctor --json
+bnn doctor --plain
 ```
 
-### Configuration
+Exit codes:
+- `0`: ready
+- `1`: one or more checks failed
+- `2`: invalid usage
+
+## Skill URL
 
 ```bash
-bnn config init           # Create project config
-bnn config init --global  # Create global config
-bnn config show           # Show effective config
-bnn config set model.default gemini-2.0-flash-exp
-bnn config get model.default
-bnn config path           # Show config file paths
+bnn skill
 ```
 
-## Configuration
+Prints:
+`https://github.com/vforsh/bnn/tree/main/skill/bnn`
 
-Configuration is loaded from (in order of precedence):
+## Global flags
 
-1. Command-line flags
-2. Environment variables (`BNN_API_KEY`, `BNN_MODEL`, etc.)
-3. Project config (`.config/bnn.toml`)
-4. Global config (`~/.config/bnn/config.toml`)
-5. Built-in defaults
-
-### Example config
-
-```toml
-[api]
-key = "your-api-key-here"
-
-[model]
-default = "gemini-2.0-flash-exp"
-
-[output]
-directory = "./generated"
-resolution = "1k"
-aspect_ratio = "1:1"
-naming = "prompt"
-
-[session]
-max_history = 50
-
-[logging]
-level = "info"
-```
+`--json`, `--plain`, `-q`, `-v`, `--timeout`, `--retries`, `--endpoint`, `--region`, `--config`
 
 ## Models
 
-- `gemini-2.0-flash-exp` - Fast image generation, 1K resolution only
-- `imagen-3.0-generate-002` - High-quality Imagen 3 model
+- `gemini-3.1-flash-image-preview` (default, Nano Banana 2)
+- `gemini-3-pro-image-preview`
+- Official model selection guide: https://ai.google.dev/gemini-api/docs/image-generation#model-selection
+- Official pricing: https://ai.google.dev/gemini-api/docs/pricing
 
-## License
+Supported resolutions: `512px`, `1k`, `2k`, `4k`.
+Supported thinking levels: `minimal`, `high`, `dynamic` (`dynamic` = let model decide).
 
-MIT
+## Config precedence
+
+1. Environment variables (`BNN_*`)
+2. Project config (`.config/bnn.toml`)
+3. Global config (`$XDG_CONFIG_HOME/bnn/config.toml`, fallback `~/.config/bnn/config.toml`)
+4. Built-in defaults

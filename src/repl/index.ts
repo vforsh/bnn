@@ -16,6 +16,7 @@ export interface ReplOptions {
   model: string;
   resolution?: string;
   aspectRatio?: string;
+  thinking?: string;
   outputDir: string;
   search?: boolean;
 }
@@ -29,6 +30,7 @@ export async function startRepl(options: ReplOptions): Promise<void> {
     model,
     resolution,
     aspectRatio,
+    thinking,
     outputDir,
     search,
   } = options;
@@ -115,6 +117,7 @@ export async function startRepl(options: ReplOptions): Promise<void> {
         inputImageIsBase64: true,
         resolution: resolution as any,
         aspectRatio: aspectRatio as any,
+        thinkingLevel: thinking as any,
         search,
       });
 

@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { loadImageAsBase64, getMimeType, getImageDimensions } from "./image";
-import type { SupportedModel, AspectRatio, Resolution } from "./models";
+import type { SupportedModel, AspectRatio, Resolution, ThinkingLevel } from "./models";
 import { MODEL_INFO } from "./models";
 
 export interface GenerateOptions {
@@ -8,6 +8,7 @@ export interface GenerateOptions {
   prompt: string;
   resolution?: Resolution;
   aspectRatio?: AspectRatio;
+  thinkingLevel?: ThinkingLevel;
   refImages?: string[];
   search?: boolean;
 }
@@ -33,16 +34,14 @@ export interface GenerateResult {
 export class BnnClient {
   private client: GoogleGenerativeAI;
   private baseUrl?: string;
-  private relayToken?: string;
 
-  constructor(apiKey: string, baseUrl?: string, relayToken?: string) {
+  constructor(apiKey: string, baseUrl?: string) {
     this.client = new GoogleGenerativeAI(apiKey);
     this.baseUrl = baseUrl;
-    this.relayToken = relayToken;
   }
 
   async generate(options: GenerateOptions): Promise<GenerateResult> {
-    const { model, prompt, resolution, aspectRatio, refImages, search } = options;
+    const { model, prompt, resolution, aspectRatio, thinkingLevel, refImages, search } = options;
 
     const modelInfo = MODEL_INFO[model];
     if (!modelInfo) {
@@ -85,12 +84,14 @@ export class BnnClient {
 
     // Get the generative model
     const requestOptions = this.getRequestOptions();
+    const thinkingConfig = this.buildThinkingConfig(model, thinkingLevel);
     const genModel = this.client.getGenerativeModel(
       {
         model,
         generationConfig: {
           // @ts-expect-error - responseModalities is valid for image models
           responseModalities: ["TEXT", "IMAGE"],
+          ...(thinkingConfig && { thinkingConfig }),
         },
       },
       requestOptions,
@@ -117,6 +118,7 @@ export class BnnClient {
       inputImageIsBase64,
       resolution,
       aspectRatio,
+      thinkingLevel,
       refImages,
       search,
     } = options;
@@ -172,12 +174,14 @@ export class BnnClient {
 
     // Get the generative model
     const requestOptions = this.getRequestOptions();
+    const thinkingConfig = this.buildThinkingConfig(model, thinkingLevel);
     const genModel = this.client.getGenerativeModel(
       {
         model,
         generationConfig: {
           // @ts-expect-error - responseModalities is valid for image models
           responseModalities: ["TEXT", "IMAGE"],
+          ...(thinkingConfig && { thinkingConfig }),
         },
       },
       requestOptions,
@@ -197,12 +201,26 @@ export class BnnClient {
   }
 
   private getRequestOptions() {
-    if (!this.baseUrl && !this.relayToken) return undefined;
+    if (!this.baseUrl) return undefined;
+    return { baseUrl: this.baseUrl };
+  }
+
+  private buildThinkingConfig(
+    model: SupportedModel,
+    level?: ThinkingLevel,
+  ): { thinkingLevel: "Minimal" | "High" } | undefined {
+    if (!level || level === "dynamic") {
+      return undefined;
+    }
+
+    if (model !== "gemini-3.1-flash-image-preview") {
+      throw new Error(
+        `Model ${model} does not support explicit thinking levels. Use 'dynamic' or omit --thinking.`,
+      );
+    }
+
     return {
-      ...(this.baseUrl && { baseUrl: this.baseUrl }),
-      ...(this.relayToken && {
-        customHeaders: { "x-relay-token": this.relayToken },
-      }),
+      thinkingLevel: level === "high" ? "High" : "Minimal",
     };
   }
 

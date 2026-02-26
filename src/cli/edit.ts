@@ -2,11 +2,21 @@ import { Command } from "commander";
 import { writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname, resolve, basename } from "path";
 import ora from "ora";
-import { loadConfig, type Config } from "../config";
-import { BnnClient, validateModel, validateAspectRatio, validateResolution, type AspectRatio } from "../core";
+import { loadConfig } from "../config";
+import {
+  BnnClient,
+  validateModel,
+  validateAspectRatio,
+  validateResolution,
+  type AspectRatio,
+  SUPPORTED_MODELS,
+  validateThinkingLevel,
+  type ThinkingLevel,
+} from "../core";
 import { SessionManager } from "../session";
-import { logger, generateOutputFilename, formatGenerateResult, promptToSlug } from "../utils";
+import { logger, formatGenerateResult, promptToSlug } from "../utils";
 import { startRepl } from "../repl";
+import { mergeGlobalOptions } from "./global-options";
 
 export interface EditCommandOptions {
   image?: string;
@@ -14,16 +24,21 @@ export interface EditCommandOptions {
   model?: string;
   resolution?: string;
   aspectRatio?: string;
+  thinking?: string;
   refImage?: string[];
   output?: string;
   search?: boolean;
   noText?: boolean;
   interactive?: boolean;
   json?: boolean;
+  plain?: boolean;
   verbose?: boolean;
   quiet?: boolean;
-  apiKey?: string;
   config?: string;
+  timeout?: number;
+  retries?: number;
+  endpoint?: string;
+  region?: string;
   ref?: string[];
   img?: string[];
   out?: string;
@@ -36,8 +51,9 @@ export function createEditCommand(): Command {
     .option("-i, --image <path>", "Input image to edit (required for new session)")
     .option("-s, --session <id>", "Continue existing session")
     .option("-m, --model <model>", "Model to use")
-    .option("-r, --resolution <res>", "Resolution: 1k, 2k, or 4k")
+    .option("-r, --resolution <res>", "Resolution: 512px, 1k, 2k, or 4k")
     .option("-a, --aspect-ratio <ratio>", "Aspect ratio (e.g., 16:9, 3:4)")
+    .option("-t, --thinking <level>", "Thinking level: minimal, high, or dynamic")
     .option(
       "--ref-image <path>",
       "Reference image (can be used multiple times)",
@@ -48,13 +64,20 @@ export function createEditCommand(): Command {
     .option("--ref <path>", "", collect, [])
     .option("--img <path>", "", collect, [])
     .option("--out <path>", "")
-    .option("--search", "Enable Google Search grounding (gemini-3-pro-image-preview only)")
+    .option("--search", "Enable Google Search grounding when supported by model")
     .option("--no-text", "Suppress text response in output")
     .option("--interactive", "Enter interactive REPL mode after edit")
     .option("--json", "Output result as JSON")
-    .action(async (prompt: string, options: EditCommandOptions) => {
-      await runEdit(prompt, options);
-    });
+    .option("--plain", "Output stable plain text")
+    .action(
+      async (
+        prompt: string,
+        options: EditCommandOptions,
+        commandInstance: Command,
+      ) => {
+        await runEdit(prompt, mergeGlobalOptions(commandInstance, options));
+      }
+    );
 
   return command;
 }
@@ -82,13 +105,13 @@ async function runEdit(
   }
 
   // Get API key
-  const apiKey = options.apiKey || config.api?.key;
+  const apiKey = process.env.BNN_API_KEY || config.api?.key;
   if (!apiKey) {
     formatGenerateResult(
       {
         success: false,
         error:
-          "No API key provided. Set BNN_API_KEY env var, use --api-key flag, or add to config file.",
+          "No API key provided. Set BNN_API_KEY env var or add api.key to config.",
       },
       options
     );
@@ -117,12 +140,12 @@ async function runEdit(
   }
 
   // Validate and set model
-  const model = options.model || config.model?.default || "gemini-3-pro-image-preview";
+  const model = options.model || config.model?.default || "gemini-3.1-flash-image-preview";
   if (!validateModel(model)) {
     formatGenerateResult(
       {
         success: false,
-        error: `Invalid model: ${model}. Supported: gemini-2.0-flash-exp, imagen-3.0-generate-002`,
+        error: `Invalid model: ${model}. Supported: ${SUPPORTED_MODELS.join(", ")}`,
       },
       options
     );
@@ -135,7 +158,7 @@ async function runEdit(
     formatGenerateResult(
       {
         success: false,
-        error: `Invalid resolution: ${resolution}. Supported: 1k, 2k, 4k`,
+        error: `Invalid resolution: ${resolution}. Supported: 512px, 1k, 2k, 4k`,
       },
       options
     );
@@ -149,6 +172,19 @@ async function runEdit(
       {
         success: false,
         error: `Invalid aspect ratio: ${aspectRatio}`,
+      },
+      options
+    );
+    process.exit(2);
+  }
+
+  // Validate thinking level
+  const thinking = options.thinking || config.model?.thinking;
+  if (thinking && !validateThinkingLevel(thinking)) {
+    formatGenerateResult(
+      {
+        success: false,
+        error: `Invalid thinking level: ${thinking}. Supported: minimal, high, dynamic`,
       },
       options
     );
@@ -224,12 +260,16 @@ async function runEdit(
 
   // Show spinner
   const spinner =
-    options.quiet || options.json ? null : ora("Editing image...").start();
+    options.quiet || options.json || options.plain ? null : ora("Editing image...").start();
 
   try {
-    const client = new BnnClient(apiKey, config.api?.proxy, config.api?.relay_token);
+    const client = new BnnClient(
+      apiKey,
+      options.endpoint || config.api?.endpoint,
+    );
 
     logger.debug(`Model: ${model}`);
+    logger.debug(`Thinking: ${thinking || "model-default"}`);
     logger.debug(`Session: ${session.id}`);
     logger.debug(`Output: ${outputPath}`);
 
@@ -238,8 +278,9 @@ async function runEdit(
       prompt,
       inputImage,
       inputImageIsBase64,
-      resolution: resolution as "1k" | "2k" | "4k",
+      resolution: resolution as "512px" | "1k" | "2k" | "4k",
       aspectRatio: aspectRatio as typeof aspectRatio extends string ? AspectRatio : undefined,
+      thinkingLevel: thinking as ThinkingLevel | undefined,
       refImages: options.refImage,
       search: options.search,
     });
@@ -268,7 +309,7 @@ async function runEdit(
     );
 
     // Enter interactive mode if requested
-    if (options.interactive && !options.json) {
+    if (options.interactive && !options.json && !options.plain) {
       logger.info(`\nSession started: ${session.id}`);
       logger.info(
         `Resume with: bnn edit --session ${session.id} "<prompt>"\n`
@@ -282,10 +323,11 @@ async function runEdit(
         model,
         resolution,
         aspectRatio,
+        thinking,
         outputDir,
         search: options.search,
       });
-    } else if (!options.quiet && !options.json) {
+    } else if (!options.quiet && !options.json && !options.plain) {
       logger.info(`Session: ${session.id}`);
       logger.info(
         `Resume with: bnn edit --session ${session.id} "<prompt>"`

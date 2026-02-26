@@ -24,7 +24,7 @@ export interface SessionInfo {
 
 export function formatGenerateResult(
   result: GenerateResult,
-  options: { json?: boolean; verbose?: boolean; quiet?: boolean }
+  options: { json?: boolean; plain?: boolean; verbose?: boolean; quiet?: boolean }
 ): void {
   if (options.json) {
     logger.json(result);
@@ -33,6 +33,13 @@ export function formatGenerateResult(
 
   if (!result.success) {
     logger.error(result.error || "Unknown error");
+    return;
+  }
+
+  if (options.plain) {
+    if (result.output) logger.raw(result.output);
+    if (result.session_id) logger.raw(`session_id=${result.session_id}`);
+    if (result.model) logger.raw(`model=${result.model}`);
     return;
   }
 
@@ -70,10 +77,17 @@ export function formatGenerateResult(
 
 export function formatSessionList(
   sessions: SessionInfo[],
-  options: { json?: boolean }
+  options: { json?: boolean; plain?: boolean }
 ): void {
   if (options.json) {
     logger.json(sessions);
+    return;
+  }
+
+  if (options.plain) {
+    for (const session of sessions) {
+      logger.raw(session.id);
+    }
     return;
   }
 
@@ -93,10 +107,15 @@ export function formatSessionList(
 
 export function formatSessionDetail(
   session: SessionInfo & { history?: Array<{ prompt: string; output: string }> },
-  options: { json?: boolean }
+  options: { json?: boolean; plain?: boolean }
 ): void {
   if (options.json) {
     logger.json(session);
+    return;
+  }
+
+  if (options.plain) {
+    logger.raw(session.id);
     return;
   }
 

@@ -2,14 +2,15 @@ import type { Config } from "./schema";
 import { homedir } from "os";
 import { join } from "path";
 
+const XDG_CONFIG_HOME = process.env.XDG_CONFIG_HOME || join(homedir(), ".config");
+
 export const DEFAULT_CONFIG: Required<Config> = {
   api: {
     key: undefined,
-    proxy: "https://gemini.rwhl.se",
-    relay_token: undefined,
+    endpoint: undefined,
   },
   model: {
-    default: "gemini-2.0-flash-exp",
+    default: "gemini-3.1-flash-image-preview",
   },
   output: {
     directory: undefined,
@@ -27,8 +28,7 @@ export const DEFAULT_CONFIG: Required<Config> = {
 };
 
 export const GLOBAL_CONFIG_PATH = join(
-  homedir(),
-  ".config",
+  XDG_CONFIG_HOME,
   "bnn",
   "config.toml"
 );
@@ -40,5 +40,5 @@ export const ENV_MODEL = "BNN_MODEL";
 export const ENV_OUTPUT_DIR = "BNN_OUTPUT_DIR";
 export const ENV_RESOLUTION = "BNN_RESOLUTION";
 export const ENV_ASPECT_RATIO = "BNN_ASPECT_RATIO";
-export const ENV_PROXY = "BNN_PROXY";
-export const ENV_RELAY_TOKEN = "BNN_RELAY_TOKEN";
+export const ENV_THINKING = "BNN_THINKING";
+export const ENV_ENDPOINT = "BNN_ENDPOINT";

@@ -3,11 +3,14 @@ import { loadConfig } from "../config";
 import { SessionManager } from "../session";
 import { logger, formatSessionList, formatSessionDetail } from "../utils";
 import { join } from "path";
+import { mergeGlobalOptions } from "./global-options";
 
 export interface SessionCommandOptions {
   json?: boolean;
+  plain?: boolean;
   limit?: number;
   verbose?: boolean;
+  quiet?: boolean;
   config?: string;
 }
 
@@ -26,9 +29,11 @@ function createListCommand(): Command {
   return new Command("list")
     .description("List all sessions")
     .option("--json", "Output as JSON")
+    .option("--plain", "Output as stable plain text")
     .option("-l, --limit <n>", "Limit results", parseInt)
-    .action(async (options: SessionCommandOptions) => {
-      const config = loadConfig(options.config);
+    .action(async (options: SessionCommandOptions, command: Command) => {
+      const merged = mergeGlobalOptions(command, options);
+      const config = loadConfig(merged.config);
       const sessionDir =
         config.session?.directory ||
         join(process.env.HOME || "~", ".local", "share", "bnn", "sessions");
@@ -40,7 +45,7 @@ function createListCommand(): Command {
         sessions = sessions.slice(0, options.limit);
       }
 
-      formatSessionList(sessions, { json: options.json });
+      formatSessionList(sessions, { json: merged.json, plain: merged.plain });
     });
 }
 
@@ -49,8 +54,10 @@ function createShowCommand(): Command {
     .description("Show session details")
     .argument("<id>", "Session ID")
     .option("--json", "Output as JSON")
-    .action(async (id: string, options: SessionCommandOptions) => {
-      const config = loadConfig(options.config);
+    .option("--plain", "Output as stable plain text")
+    .action(async (id: string, options: SessionCommandOptions, command: Command) => {
+      const merged = mergeGlobalOptions(command, options);
+      const config = loadConfig(merged.config);
       const sessionDir =
         config.session?.directory ||
         join(process.env.HOME || "~", ".local", "share", "bnn", "sessions");
@@ -59,7 +66,7 @@ function createShowCommand(): Command {
       const session = sessionManager.get(id);
 
       if (!session) {
-        if (options.json) {
+        if (merged.json) {
           logger.json({ error: `Session not found: ${id}` });
         } else {
           logger.error(`Session not found: ${id}`);
@@ -80,7 +87,7 @@ function createShowCommand(): Command {
             output: h.output,
           })),
         },
-        { json: options.json }
+        { json: merged.json, plain: merged.plain }
       );
     });
 }
@@ -90,8 +97,10 @@ function createDeleteCommand(): Command {
     .description("Delete a session")
     .argument("<id>", "Session ID")
     .option("--json", "Output as JSON")
-    .action(async (id: string, options: SessionCommandOptions) => {
-      const config = loadConfig(options.config);
+    .option("--plain", "Output as stable plain text")
+    .action(async (id: string, options: SessionCommandOptions, command: Command) => {
+      const merged = mergeGlobalOptions(command, options);
+      const config = loadConfig(merged.config);
       const sessionDir =
         config.session?.directory ||
         join(process.env.HOME || "~", ".local", "share", "bnn", "sessions");
@@ -99,8 +108,10 @@ function createDeleteCommand(): Command {
 
       const deleted = sessionManager.delete(id);
 
-      if (options.json) {
+      if (merged.json) {
         logger.json({ success: deleted, id });
+      } else if (merged.plain) {
+        logger.raw(deleted ? id : "");
       } else if (deleted) {
         logger.success(`Deleted session: ${id}`);
       } else {
@@ -114,8 +125,10 @@ function createClearCommand(): Command {
   return new Command("clear")
     .description("Delete all sessions")
     .option("--json", "Output as JSON")
-    .action(async (options: SessionCommandOptions) => {
-      const config = loadConfig(options.config);
+    .option("--plain", "Output as stable plain text")
+    .action(async (options: SessionCommandOptions, command: Command) => {
+      const merged = mergeGlobalOptions(command, options);
+      const config = loadConfig(merged.config);
       const sessionDir =
         config.session?.directory ||
         join(process.env.HOME || "~", ".local", "share", "bnn", "sessions");
@@ -123,8 +136,10 @@ function createClearCommand(): Command {
 
       const count = sessionManager.clear();
 
-      if (options.json) {
+      if (merged.json) {
         logger.json({ success: true, deleted: count });
+      } else if (merged.plain) {
+        logger.raw(String(count));
       } else {
         logger.success(`Deleted ${count} session(s)`);
       }
