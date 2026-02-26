@@ -1,16 +1,18 @@
 {
-  "name": "bnn",
+  "name": "@vforsh/bnn",
   "version": "0.1.0",
   "description": "CLI for generating and editing images with Gemini API",
   "module": "src/index.ts",
   "type": "module",
   "bin": {
-    "bnn": "./src/index.ts"
+    "bnn": "bin/bnn"
   },
   "scripts": {
     "start": "bun run src/index.ts",
     "build": "bun build src/index.ts --outdir dist --target node",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "bun test",
+    "cmd": "bun run bin/bnn"
   },
   "keywords": [
     "gemini",
@@ -18,13 +20,22 @@
     "image-generation",
     "cli"
   ],
-  "author": "",
+  "author": "Vladislav Forsh",
   "license": "MIT",
-  "devDependencies": {
-    "@types/bun": "latest"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vforsh/bnn.git"
   },
-  "peerDependencies": {
-    "typescript": "^5"
+  "homepage": "https://github.com/vforsh/bnn#readme",
+  "bugs": {
+    "url": "https://github.com/vforsh/bnn/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "latest"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
